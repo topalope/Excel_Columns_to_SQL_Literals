@@ -1,0 +1,299 @@
+import csv
+import sys
+from pathlib import Path
+import tkinter as tk
+from tkinter import filedialog, messagebox
+
+# Optional Excel dependencies
+try:
+    import openpyxl  # for .xlsx
+except ImportError:
+    openpyxl = None
+
+try:
+    import xlrd  # for .xls
+except ImportError:
+    xlrd = None
+
+
+def wrap_for_sql(value: str) -> str:
+    """
+    Trim whitespace, remove outer single quotes if present,
+    then escape internal single quotes and wrap in single quotes.
+    """
+    value = value.strip()
+
+    # If already wrapped in single quotes, strip them first
+    if len(value) >= 2 and value.startswith("'") and value.endswith("'"):
+        value = value[1:-1]
+
+    # Escape any internal single quotes for SQL (O'Brien -> O''Brien)
+    value = value.replace("'", "''")
+
+    return f"'{value}'"
+
+
+def read_tabular_file(input_path: Path) -> list[list[str]]:
+    """
+    Read CSV, XLS, or XLSX into a list of rows (list of list of strings).
+    """
+    ext = input_path.suffix.lower()
+
+    if ext == ".csv":
+        rows: list[list[str]] = []
+        with input_path.open("r", newline="", encoding="utf-8-sig") as f:
+            reader = csv.reader(f)
+            for row in reader:
+                rows.append(row)
+        return rows
+
+    if ext == ".xlsx":
+        if openpyxl is None:
+            raise RuntimeError(
+                "openpyxl is required to read .xlsx files. "
+                "Install it or save the file as CSV first."
+            )
+        wb = openpyxl.load_workbook(input_path, data_only=True, read_only=True)
+        ws = wb[wb.sheetnames[0]]  # first sheet
+
+        rows: list[list[str]] = []
+        for row in ws.iter_rows(values_only=True):
+            rows.append(["" if cell is None else str(cell) for cell in row])
+        return rows
+
+    if ext == ".xls":
+        if xlrd is None:
+            raise RuntimeError(
+                "xlrd is required to read .xls files. "
+                "Install it (version that supports .xls) or save the file as CSV/.xlsx first."
+            )
+        book = xlrd.open_workbook(input_path)
+        sheet = book.sheet_by_index(0)
+
+        rows: list[list[str]] = []
+        for r in range(sheet.nrows):
+            row_vals = []
+            for c in range(sheet.ncols):
+                val = sheet.cell_value(r, c)
+                row_vals.append("" if val is None else str(val))
+            rows.append(row_vals)
+        return rows
+
+    raise ValueError(f"Unsupported file type: {ext}. Use CSV, XLS, or XLSX.")
+
+
+def flatten_by_columns(rows: list[list[str]]) -> list[list[str]]:
+    """
+    Take a 2D table and produce ONE row of SQL-wrapped values:
+    iterate column by column, then down each column.
+
+    Skips empty/whitespace-only cells.
+    """
+    non_empty_rows = [row for row in rows if any(str(cell).strip() for cell in row)]
+    if not non_empty_rows:
+        raise ValueError("Input file appears to be empty or only whitespace.")
+
+    # Use all rows to find max column count (handles ragged rows)
+    max_cols = max((len(r) for r in rows), default=0)
+    if max_cols == 0:
+        raise ValueError("Input appears to have no columns.")
+
+    flat_values: list[str] = []
+
+    # Column-major flattening: col 0 all rows, then col 1, etc.
+    for col_idx in range(max_cols):
+        for row in rows:
+            if col_idx < len(row):
+                val = str(row[col_idx]).strip()
+                if val:
+                    flat_values.append(wrap_for_sql(val))
+
+    # Result is a single CSV row
+    return [flat_values]
+
+
+def quote_preserve_layout(rows: list[list[str]]) -> list[list[str]]:
+    """
+    Quote each non-empty cell but keep the original row/column layout.
+    Empty rows remain empty.
+    """
+    output_rows: list[list[str]] = []
+
+    for row in rows:
+        if not any(str(cell).strip() for cell in row):
+            output_rows.append([])
+            continue
+        output_rows.append([wrap_for_sql(str(cell)) for cell in row])
+
+    return output_rows
+
+
+def ask_multicol_mode() -> str | None:
+    """
+    Ask the user how to handle multi-column data.
+
+    Returns:
+        "flatten"  -> flatten column-by-column into one long list
+        "preserve" -> keep rows/columns, just quote cells
+        None       -> user cancelled
+    """
+    root = tk.Tk()
+    root.withdraw()
+    result = messagebox.askyesnocancel(
+        "Multi-column file detected",
+        (
+            "This file has multiple columns.\n\n"
+            "Yes  = Flatten by columns into a single SQL list\n"
+            "No   = Preserve rows/columns and quote each cell\n"
+            "Cancel = Abort"
+        ),
+    )
+    root.destroy()
+
+    if result is None:       # Cancel / window closed
+        return None
+    if result:               # Yes
+        return "flatten"
+    return "preserve"        # No
+
+
+def choose_file_with_dialog() -> Path | None:
+    # Create a hidden Tk root just for the dialog
+    root = tk.Tk()
+    root.withdraw()
+    root.update_idletasks()
+
+    file_path = filedialog.askopenfilename(
+        title="Select file to make READY FOR SQL",
+        filetypes=[
+            ("Supported files", "*.csv;*.xls;*.xlsx"),
+            ("CSV files", "*.csv"),
+            ("Excel files", "*.xls;*.xlsx"),
+            ("All files", "*.*"),
+        ],
+    )
+
+    root.destroy()
+
+    if not file_path:
+        return None
+
+    return Path(file_path)
+
+
+def show_message(title: str, message: str, error: bool = False) -> None:
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        if error:
+            messagebox.showerror(title, message)
+        else:
+            messagebox.showinfo(title, message)
+        root.destroy()
+    except Exception:
+        # Fallback to console if GUI fails
+        print(f"{title}: {message}")
+
+
+def build_output_path(input_path: Path, mode_tag: str) -> Path:
+    """
+    Build a non-clobbering output path in the same directory as input_path.
+
+    Pattern:
+      READY FOR SQL [MODE] <stem>.csv
+      READY FOR SQL [MODE] <stem> (2).csv
+      READY FOR SQL [MODE] <stem> (3).csv
+      ...
+    """
+    parent = input_path.parent
+    stem = input_path.stem
+
+    base_name = f"READY FOR SQL [{mode_tag}] {stem}.csv"
+    candidate = parent / base_name
+
+    if not candidate.exists():
+        return candidate
+
+    # If it already exists, append (2), (3), ...
+    idx = 2
+    while True:
+        name = f"READY FOR SQL [{mode_tag}] {stem} ({idx}).csv"
+        candidate = parent / name
+        if not candidate.exists():
+            return candidate
+        idx += 1
+
+
+def main():
+    # Allow CLI arg OR dialog
+    if len(sys.argv) >= 2:
+        input_path = Path(sys.argv[1])
+    else:
+        input_path = choose_file_with_dialog()
+        if input_path is None:
+            print("No file selected. Exiting.")
+            return
+
+    if not input_path.is_file():
+        msg = f"Error: '{input_path}' is not a file or does not exist."
+        show_message("READY FOR SQL", msg, error=True)
+        return
+
+    try:
+        rows = read_tabular_file(input_path)
+    except Exception as e:
+        show_message("READY FOR SQL - Error", f"Failed to read file:\n{e}", error=True)
+        return
+
+    # Basic structure checks
+    if not rows:
+        show_message("READY FOR SQL - Error", "File appears to be empty.", error=True)
+        return
+
+    max_cols = max((len(r) for r in rows), default=0)
+    if max_cols == 0:
+        show_message("READY FOR SQL - Error", "File appears to have no columns.", error=True)
+        return
+
+    # Decide how to build output rows + mode tag for filename
+    try:
+        if max_cols == 1:
+            # Single-column: always flatten into one long SQL list
+            output_rows = flatten_by_columns(rows)
+            mode_tag = "LIST1C"   # single-column list
+        else:
+            # Multi-column: ask user what they want
+            mode = ask_multicol_mode()
+            if mode is None:
+                print("Operation cancelled.")
+                return
+            if mode == "flatten":
+                output_rows = flatten_by_columns(rows)
+                mode_tag = "LISTMC"  # multi-column list
+            else:
+                output_rows = quote_preserve_layout(rows)
+                mode_tag = "TABLE"   # preserve table layout
+    except Exception as e:
+        show_message("READY FOR SQL - Error", f"Failed to process data:\n{e}", error=True)
+        return
+
+    # Build a non-clobbering output path based on the mode
+    output_path = build_output_path(input_path, mode_tag)
+
+    try:
+        with output_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerows(output_rows)
+    except Exception as e:
+        show_message("READY FOR SQL - Error", f"Failed to write output file:\n{e}", error=True)
+        return
+
+    show_message(
+        "READY FOR SQL",
+        f"Done!\n\nMode: {mode_tag}\nSQL-ready CSV saved as:\n{output_path}",
+        error=False,
+    )
+
+
+if __name__ == "__main__":
+    main()
