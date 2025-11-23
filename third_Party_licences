@@ -1,0 +1,196 @@
+THIRD-PARTY SOFTWARE LICENSES
+=============================
+
+This application bundles third-party software components.
+This file describes:
+
+- Which components are included
+- How/where they are used in the application
+- The license that applies to each component
+- Where to find the original and most up-to-date license text
+
+IMPORTANT:
+The short descriptions below are informational only.
+For compliance, you must also include the full text of each license,
+pasted into the placeholders marked "INSERT FULL LICENSE TEXT HERE".
+
+------------------------------------------------------------
+1. Python (CPython Runtime & Standard Library)
+------------------------------------------------------------
+
+Component:
+    Python (CPython) runtime and standard library
+    (including modules such as: sys, csv, pathlib, tkinter, etc.)
+
+Used by:
+    This application is written in Python and runs on the bundled
+    CPython interpreter. Standard library modules are used throughout
+    the code (e.g., csv for CSV handling, pathlib for filesystem paths,
+    tkinter for GUI dialogs).
+
+License:
+    Python Software Foundation License (PSF-2.0)
+
+Project home:
+    https://www.python.org/
+
+License information:
+    https://docs.python.org/3/license.html
+    https://www.python.org/downloads/source/
+
+Latest license reference:
+    The current Python license for your bundled version can be
+    found in the official Python documentation and source distributions
+    at the URLs above.
+
+Full license text:
+    <<< INSERT FULL PYTHON / PSF LICENSE TEXT HERE >>>
+
+------------------------------------------------------------
+2. Tcl/Tk (GUI Toolkit used via tkinter)
+------------------------------------------------------------
+
+Component:
+    Tcl and Tk (the GUI toolkit underlying Python's tkinter module)
+
+Used by:
+    The tkinter module uses Tcl/Tk internally to provide GUI elements.
+    This application uses tkinter for file selection dialogs and
+    message boxes.
+
+License:
+    Tcl/Tk License (BSD-style, Tcl/Tk-specific)
+
+Project home:
+    https://www.tcl-lang.org/
+
+License information:
+    https://www.tcl-lang.org/software/tcltk/license.html
+
+Latest license reference:
+    The most recent Tcl/Tk license text is provided on the
+    official Tcl/Tk website at the URL above (file "license.terms").
+
+Full license text:
+    <<< INSERT FULL TCL/TK LICENSE TEXT HERE >>>
+
+------------------------------------------------------------
+3. PyInstaller Bootloader
+------------------------------------------------------------
+
+Component:
+    PyInstaller bootloader and related files
+
+Used by:
+    PyInstaller is used to create the standalone executable for
+    this application. The resulting executable includes the
+    PyInstaller bootloader, which initializes the Python runtime
+    and starts the bundled application code.
+
+License:
+    GNU General Public License, version 2 (GPL-2.0),
+    with the "PyInstaller bootloader exception".
+
+    The special exception allows you to use PyInstaller to build and
+    distribute non-GPL/commercial applications without your own code
+    being subject to the GPL, provided you comply with the terms of
+    the PyInstaller license.
+
+Project home:
+    https://www.pyinstaller.org/
+
+License information:
+    https://pyinstaller.org/en/stable/license.html
+    (See also the COPYING.txt file in the PyInstaller source distribution.)
+
+Latest license reference:
+    The most up-to-date PyInstaller license text and exception
+    are published on the PyInstaller website and in the
+    official source repository at the URLs above.
+
+Full license text:
+    <<< INSERT FULL PYINSTALLER LICENSE (GPL-2.0 + EXCEPTION) HERE >>>
+
+------------------------------------------------------------
+4. openpyxl
+------------------------------------------------------------
+
+Component:
+    openpyxl – Python library to read/write Excel 2010 xlsx/xlsm files.
+
+Used by:
+    This application uses openpyxl (if available) to read .xlsx Excel
+    files and convert their contents into SQL-ready CSV output.
+
+License:
+    MIT License
+
+Project home:
+    Documentation: https://openpyxl.readthedocs.io/
+    Source code:   https://foss.heptapod.net/openpyxl/openpyxl/
+
+License information:
+    See the "LICENSE" or "LICENSE.rst" file in the source repository,
+    and the project information on PyPI:
+
+    PyPI project page:
+        https://pypi.org/project/openpyxl/
+
+Latest license reference:
+    The latest license text for openpyxl is maintained in the source
+    repository and linked from the documentation and PyPI page.
+
+Full license text:
+    <<< INSERT FULL OPENPYXL MIT LICENSE TEXT HERE >>>
+
+------------------------------------------------------------
+5. xlrd
+------------------------------------------------------------
+
+Component:
+    xlrd – Python library for reading data from Excel .xls files.
+
+Used by:
+    This application uses xlrd (if available) to read legacy .xls
+    Excel files and convert their contents into SQL-ready CSV output.
+
+License:
+    BSD-style licenses (primarily BSD-3-Clause and BSD-4-Clause
+    style terms, as described in the xlrd documentation).
+
+Project home:
+    Project page: http://www.python-excel.org/
+    Source code:  https://github.com/python-excel/xlrd/
+
+License information:
+    Official xlrd license documentation:
+        https://xlrd.readthedocs.io/en/latest/licenses.html
+
+    Package index (license summary):
+        https://pypi.org/project/xlrd/
+
+Latest license reference:
+    The xlrd maintainers publish the current license texts in the
+    documentation and source repository. Please refer to the URLs
+    above for the most up-to-date license information.
+
+Full license text:
+    <<< INSERT FULL XLRD LICENSE TEXT(S) HERE >>>
+
+------------------------------------------------------------
+6. Additional Dependencies
+------------------------------------------------------------
+
+Depending on the environment and PyInstaller configuration, the
+packaged executable may include additional Python modules and
+system libraries.
+
+If you intend to make a production / commercial release, you
+should verify the final dependency set and add any additional
+licenses here. Tools such as "pip-licenses", "license-grep", or
+other license scanners can help you enumerate all bundled
+third-party Python packages.
+
+------------------------------------------------------------
+END OF THIRD-PARTY LICENSE NOTICE
+------------------------------------------------------------
